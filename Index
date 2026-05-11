@@ -1,0 +1,1400 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0a0a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Field Tracker" />
+  <title>GT Mann Field Tracker</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* === RESET & BASE === */
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      overscroll-behavior: none;
+    }
+    body {
+      font-family: 'IBM Plex Sans', system-ui, sans-serif;
+      background: #0a0a0a;
+      color: #f5f5f5;
+      font-size: 16px;
+      line-height: 1.4;
+      user-select: none;
+      -webkit-user-select: none;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+    button { font-family: inherit; cursor: pointer; }
+    .mono { font-family: 'IBM Plex Mono', monospace; }
+
+```
+/* === LAYOUT === */
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* === HEADER === */
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid #1f1f1f;
+  background: #0a0a0a;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.brand-dot {
+  width: 10px;
+  height: 10px;
+  background: #FFD600;
+  border-radius: 50%;
+  box-shadow: 0 0 12px #FFD600;
+}
+.brand-name {
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #f5f5f5;
+}
+.date-display {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: #888;
+}
+
+/* === TABS === */
+.tabs {
+  display: flex;
+  border-bottom: 1px solid #1f1f1f;
+  background: #0a0a0a;
+}
+.tab {
+  flex: 1;
+  padding: 14px 8px;
+  text-align: center;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #666;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s ease;
+}
+.tab.active {
+  color: #FFD600;
+  border-bottom-color: #FFD600;
+}
+
+/* === MAIN VIEWS === */
+main {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+}
+.view {
+  display: none;
+  padding: 16px 20px 120px;
+  animation: fadeIn 0.2s ease;
+}
+.view.active { display: block; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* === EMPTY STATE === */
+.empty {
+  text-align: center;
+  padding: 48px 24px;
+  color: #555;
+}
+.empty-icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+  opacity: 0.4;
+}
+.empty-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #888;
+  margin-bottom: 6px;
+}
+.empty-sub {
+  font-size: 13px;
+  color: #555;
+}
+
+/* === ACTIVITY CARD === */
+.activity {
+  background: #141414;
+  border: 1px solid #1f1f1f;
+  border-left: 3px solid #333;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  position: relative;
+}
+.activity-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: #888;
+  letter-spacing: 0.05em;
+}
+.activity-time {
+  font-weight: 600;
+  color: #aaa;
+}
+.activity-duration {
+  color: #FFD600;
+}
+.activity-transcript {
+  font-size: 14px;
+  color: #f5f5f5;
+  margin: 6px 0 10px;
+  line-height: 1.45;
+}
+.activity-code {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+}
+.activity-code-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.activity-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.activity-action {
+  flex: 1;
+  padding: 8px;
+  font-size: 12px;
+  font-family: 'IBM Plex Mono', monospace;
+  letter-spacing: 0.05em;
+  color: #888;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+}
+.activity-action.danger {
+  color: #ff4444;
+}
+
+/* === RECORD BUTTON === */
+.record-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 16px 20px calc(20px + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, #0a0a0a 60%, rgba(10,10,10,0));
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 10;
+}
+.record-btn {
+  pointer-events: auto;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: #FFD600;
+  border: 4px solid #0a0a0a;
+  box-shadow: 0 0 0 2px #FFD600, 0 8px 32px rgba(255, 214, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.1s ease, background 0.15s ease;
+  position: relative;
+}
+.record-btn:active {
+  transform: scale(0.94);
+}
+.record-btn.recording {
+  background: #ff3b30;
+  box-shadow: 0 0 0 2px #ff3b30, 0 8px 32px rgba(255, 59, 48, 0.5);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 2px #ff3b30, 0 8px 32px rgba(255, 59, 48, 0.5); }
+  50% { box-shadow: 0 0 0 12px rgba(255, 59, 48, 0), 0 8px 32px rgba(255, 59, 48, 0.7); }
+}
+.record-icon {
+  width: 28px;
+  height: 28px;
+  background: #0a0a0a;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+.record-btn.recording .record-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  background: #f5f5f5;
+}
+
+/* === RECORDING OVERLAY === */
+.recording-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10,10,10,0.96);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 100;
+  display: none;
+  flex-direction: column;
+  padding: env(safe-area-inset-top) 24px env(safe-area-inset-bottom);
+}
+.recording-overlay.active {
+  display: flex;
+}
+.rec-header {
+  padding: 20px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid #1f1f1f;
+}
+.rec-pulse {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ff3b30;
+  animation: pulse-dot 1s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.7); }
+}
+.rec-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #ff3b30;
+  font-weight: 600;
+}
+.rec-timer {
+  margin-left: auto;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  color: #aaa;
+}
+.rec-transcript {
+  flex: 1;
+  padding: 24px 0;
+  font-size: 22px;
+  line-height: 1.4;
+  color: #f5f5f5;
+  overflow-y: auto;
+}
+.rec-transcript .interim {
+  color: #888;
+}
+.rec-placeholder {
+  color: #444;
+  font-size: 16px;
+  font-family: 'IBM Plex Mono', monospace;
+  letter-spacing: 0.05em;
+}
+.rec-controls {
+  display: flex;
+  gap: 12px;
+  padding: 16px 0 24px;
+}
+.rec-btn {
+  flex: 1;
+  padding: 18px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-radius: 8px;
+  border: none;
+}
+.rec-btn.cancel {
+  background: #1f1f1f;
+  color: #888;
+}
+.rec-btn.stop {
+  background: #ff3b30;
+  color: #fff;
+}
+
+/* === CONFIRM MODAL === */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  z-index: 200;
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+}
+.modal-overlay.active {
+  display: flex;
+}
+.modal {
+  background: #141414;
+  width: 100%;
+  max-width: 600px;
+  border-radius: 16px 16px 0 0;
+  padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
+  animation: slideUp 0.25s ease;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.modal-handle {
+  width: 36px;
+  height: 4px;
+  background: #2a2a2a;
+  border-radius: 2px;
+  margin: 0 auto 16px;
+}
+.modal-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #666;
+  margin-bottom: 12px;
+}
+.modal-transcript {
+  font-size: 15px;
+  color: #f5f5f5;
+  background: #1a1a1a;
+  border-left: 3px solid #FFD600;
+  padding: 12px 14px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  line-height: 1.4;
+}
+.modal-section {
+  margin-bottom: 18px;
+}
+.modal-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #666;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.confidence {
+  color: #FFD600;
+}
+.confidence.low { color: #ff9500; }
+
+.code-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.code-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #ccc;
+  text-align: left;
+}
+.code-option.selected {
+  background: #1f1f0a;
+  border-color: #FFD600;
+  color: #FFD600;
+}
+.code-option-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.code-option-name {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-weight: 500;
+}
+.code-option-num {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  opacity: 0.6;
+  margin-top: 2px;
+}
+
+.duration-input {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.duration-input input {
+  flex: 1;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  padding: 12px;
+  color: #f5f5f5;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 16px;
+  text-align: center;
+}
+.duration-input input:focus {
+  outline: none;
+  border-color: #FFD600;
+}
+.dur-btn {
+  padding: 12px 16px;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  color: #aaa;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.btn {
+  flex: 1;
+  padding: 16px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border: none;
+  border-radius: 8px;
+}
+.btn-cancel {
+  background: #1f1f1f;
+  color: #888;
+}
+.btn-primary {
+  background: #FFD600;
+  color: #0a0a0a;
+}
+
+/* === SUMMARY VIEW === */
+.summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #1f1f1f;
+}
+.summary-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #888;
+}
+.summary-total {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 28px;
+  font-weight: 700;
+  color: #FFD600;
+}
+.summary-total-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #666;
+  margin-left: 6px;
+}
+.code-row {
+  background: #141414;
+  border: 1px solid #1f1f1f;
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 8px;
+}
+.code-row-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.code-row-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.code-row-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.code-row-num {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: #666;
+  margin-top: 2px;
+}
+.code-row-hours {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 22px;
+  font-weight: 700;
+}
+.code-row-bar {
+  height: 4px;
+  background: #1f1f1f;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.code-row-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+.code-row-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: #666;
+  letter-spacing: 0.05em;
+}
+.copy-btn {
+  padding: 6px 10px;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  color: #FFD600;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.copy-btn.copied {
+  background: #1f3f1f;
+  border-color: #34C759;
+  color: #34C759;
+}
+
+.summary-actions {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.full-btn {
+  width: 100%;
+  padding: 16px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border: none;
+  border-radius: 8px;
+}
+.full-btn-primary {
+  background: #FFD600;
+  color: #0a0a0a;
+}
+.full-btn-secondary {
+  background: #1a1a1a;
+  color: #aaa;
+  border: 1px solid #2a2a2a;
+}
+
+/* === TOAST === */
+.toast {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1f1f1f;
+  color: #f5f5f5;
+  padding: 12px 18px;
+  border-radius: 8px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  border: 1px solid #2a2a2a;
+  z-index: 300;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.toast.success { border-color: #34C759; color: #34C759; }
+.toast.warn { border-color: #ff9500; color: #ff9500; }
+.toast.error { border-color: #ff3b30; color: #ff3b30; }
+
+/* === MANUAL ENTRY === */
+.manual-link {
+  text-align: center;
+  padding: 12px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #555;
+  background: none;
+  border: none;
+  width: 100%;
+  margin-top: 8px;
+}
+
+/* === SCROLLBAR === */
+main::-webkit-scrollbar { width: 4px; }
+main::-webkit-scrollbar-track { background: transparent; }
+main::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
+```
+
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <div class="brand">
+        <div class="brand-dot"></div>
+        <div class="brand-name">GT Mann · Field Tracker</div>
+      </div>
+      <div class="date-display mono" id="dateDisplay"></div>
+    </header>
+
+```
+<nav class="tabs">
+  <button class="tab active" data-view="today">Today</button>
+  <button class="tab" data-view="summary">Summary</button>
+</nav>
+
+<main>
+  <!-- TODAY VIEW -->
+  <section class="view active" id="view-today">
+    <div id="todayList"></div>
+    <button class="manual-link" id="manualEntryBtn">+ Manual entry (no voice)</button>
+  </section>
+
+  <!-- SUMMARY VIEW -->
+  <section class="view" id="view-summary">
+    <div class="summary-header">
+      <div>
+        <div class="summary-title">Today · Daily Total</div>
+      </div>
+      <div>
+        <span class="summary-total mono" id="totalHours">0.0</span>
+        <span class="summary-total-label">hrs</span>
+      </div>
+    </div>
+    <div id="summaryList"></div>
+    <div class="summary-actions">
+      <button class="full-btn full-btn-primary" id="copyAllBtn">Copy Full Summary</button>
+      <button class="full-btn full-btn-secondary" id="exportBtn">Export Evidence Report</button>
+    </div>
+  </section>
+</main>
+
+<div class="record-bar" id="recordBar">
+  <button class="record-btn" id="recordBtn" aria-label="Start recording">
+    <div class="record-icon"></div>
+  </button>
+</div>
+```
+
+  </div>
+
+  <!-- RECORDING OVERLAY -->
+
+  <div class="recording-overlay" id="recordingOverlay">
+    <div class="rec-header">
+      <div class="rec-pulse"></div>
+      <div class="rec-label">Recording</div>
+      <div class="rec-timer mono" id="recTimer">00:00</div>
+    </div>
+    <div class="rec-transcript" id="recTranscript">
+      <div class="rec-placeholder">Speak now. e.g. "Coordinating with Will on vented soffit, fourth floor deck unit B4"</div>
+    </div>
+    <div class="rec-controls">
+      <button class="rec-btn cancel" id="recCancel">Cancel</button>
+      <button class="rec-btn stop" id="recStop">Stop</button>
+    </div>
+  </div>
+
+  <!-- CONFIRM MODAL -->
+
+  <div class="modal-overlay" id="confirmModal">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Confirm Activity</div>
+      <div class="modal-transcript" id="confirmTranscript"></div>
+
+```
+  <div class="modal-section">
+    <div class="modal-label">
+      <span>Cost Code</span>
+      <span class="confidence mono" id="confidenceTag">AUTO</span>
+    </div>
+    <div class="code-grid" id="codeGrid"></div>
+  </div>
+
+  <div class="modal-section">
+    <div class="modal-label">
+      <span>Duration (minutes)</span>
+    </div>
+    <div class="duration-input">
+      <button class="dur-btn" data-dur="-15">−15</button>
+      <input type="number" id="durationInput" min="1" max="600" />
+      <button class="dur-btn" data-dur="+15">+15</button>
+    </div>
+  </div>
+
+  <div class="modal-actions">
+    <button class="btn btn-cancel" id="cancelConfirm">Cancel</button>
+    <button class="btn btn-primary" id="saveActivity">Save Activity</button>
+  </div>
+</div>
+```
+
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // =====================================================================
+    // COST CODES — GT Mann classification universe (Grand & Fir / Job #160)
+    // =====================================================================
+    const COST_CODES = [
+      {
+        code: '11206.000',
+        name: 'Foreman',
+        color: '#FFA500',
+        keywords: ['coordinat', 'meeting', 'talk', 'discuss', 'plan', 'review', 'decision', 'decid',
+                   'supervis', 'check in', 'checked in', 'walk', 'walked', 'site walk', 'drawing',
+                   'rfi', 'skyline', 'graeme', 'michael', 'scope', 'schedule', 'sub trade', 'sub',
+                   'foreman', 'organize', 'consult', 'inspect', 'check on']
+      },
+      {
+        code: '11207.000',
+        name: 'Safety / OFA',
+        color: '#FF3B30',
+        keywords: ['safety', 'toolbox', 'first aid', 'ofa', 'incident', 'ppe', 'hazard', 'jha', 'hsa']
+      },
+      {
+        code: '5220.000',
+        name: 'GTM Rough Carpentry & Steel',
+        color: '#D4824F',
+        keywords: ['frame', 'framing', 'framed', 'block', 'blocking', 'backing', 'sheet', 'sheeted',
+                   'sheeting', 'carpentry', 'stud', 'steel', 'joist', 'soffit', 'wall', 'build',
+                   'install', 'screw', 'nail', 'saw', 'cut', 'header', 'beam', 'plate', 'strapping']
+      },
+      {
+        code: '4122.000',
+        name: 'GTM Concrete Labour',
+        color: '#9E9E9E',
+        keywords: ['concrete', 'pour', 'poured', 'form', 'rebar', 'screed', 'trowel', 'stripping',
+                   'strip forms', 'curing']
+      },
+      {
+        code: '4112.000',
+        name: 'Slab Preparation',
+        color: '#6E6E6E',
+        keywords: ['slab', 'vapor barrier', 'slab prep', 'subgrade', 'compact', 'gravel base']
+      },
+      {
+        code: '10220.000',
+        name: 'Cleaning & General Labour',
+        color: '#34C759',
+        keywords: ['clean', 'sweep', 'swept', 'garbage', 'debris', 'haul', 'tidy', 'general labour',
+                   'general', 'cleanup', 'site clean', 'broom']
+      },
+      {
+        code: '12160.000',
+        name: 'Shipping',
+        color: '#7B68EE',
+        keywords: ['delivery', 'deliver', 'unload', 'unloaded', 'receive', 'received', 'stock',
+                   'load', 'shipping', 'brent', 'truck', 'material drop']
+      },
+      {
+        code: '3310.000',
+        name: 'Site Preparation',
+        color: '#FF9500',
+        keywords: ['site prep', 'site preparation', 'excavat', 'grade', 'graded', 'fill', 'rough grade']
+      },
+      {
+        code: '3325.000',
+        name: 'Dewatering',
+        color: '#00C7BE',
+        keywords: ['dewater', 'pump out', 'pumping', 'drain', 'standing water', 'sump']
+      }
+    ];
+
+    // Helper: get code by number
+    const getCode = (num) => COST_CODES.find(c => c.code === num);
+
+    // =====================================================================
+    // CLASSIFIER — keyword-based scoring with confidence
+    // =====================================================================
+    function classify(transcript) {
+      const text = transcript.toLowerCase();
+      const scores = COST_CODES.map(c => {
+        let score = 0;
+        c.keywords.forEach(kw => {
+          if (text.includes(kw)) score++;
+        });
+        return { code: c.code, score };
+      });
+      scores.sort((a, b) => b.score - a.score);
+
+      if (scores[0].score === 0) {
+        // No match — default to Foreman (most common interruption type)
+        return { code: '11206.000', confidence: 'low' };
+      }
+      const confidence = scores[0].score >= 2 || (scores[0].score > scores[1].score) ? 'high' : 'medium';
+      return { code: scores[0].code, confidence };
+    }
+
+    // =====================================================================
+    // INDEXEDDB — local activity storage
+    // =====================================================================
+    const DB_NAME = 'gtmann_field';
+    const DB_VERSION = 1;
+    const STORE = 'activities';
+
+    function openDB() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onerror = () => reject(req.error);
+        req.onsuccess = () => resolve(req.result);
+        req.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(STORE)) {
+            const store = db.createObjectStore(STORE, { keyPath: 'id' });
+            store.createIndex('date', 'date', { unique: false });
+            store.createIndex('startTime', 'startTime', { unique: false });
+          }
+        };
+      });
+    }
+
+    async function saveActivityToDB(activity) {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE, 'readwrite');
+        const req = tx.objectStore(STORE).put(activity);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function getActivitiesForDate(dateStr) {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE, 'readonly');
+        const idx = tx.objectStore(STORE).index('date');
+        const req = idx.getAll(dateStr);
+        req.onsuccess = () => resolve(req.result.sort((a, b) => a.startTime - b.startTime));
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function deleteActivityFromDB(id) {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE, 'readwrite');
+        const req = tx.objectStore(STORE).delete(id);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    // =====================================================================
+    // SPEECH RECOGNITION
+    // =====================================================================
+    let recognition = null;
+    let recStartTime = 0;
+    let recTimerInterval = null;
+    let finalTranscript = '';
+    let interimTranscript = '';
+
+    function initSpeech() {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) return null;
+      const r = new SR();
+      r.continuous = true;
+      r.interimResults = true;
+      r.lang = 'en-CA';
+      return r;
+    }
+
+    function startRecording() {
+      recognition = initSpeech();
+      if (!recognition) {
+        showToast('Speech recognition not supported on this browser. Use manual entry.', 'error');
+        return;
+      }
+
+      finalTranscript = '';
+      interimTranscript = '';
+      updateTranscriptDisplay(true);
+
+      recognition.onresult = (e) => {
+        interimTranscript = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const t = e.results[i][0].transcript;
+          if (e.results[i].isFinal) finalTranscript += t + ' ';
+          else interimTranscript += t;
+        }
+        updateTranscriptDisplay();
+      };
+
+      recognition.onerror = (e) => {
+        if (e.error === 'no-speech' || e.error === 'aborted') return;
+        showToast('Voice error: ' + e.error, 'error');
+      };
+
+      recognition.onend = () => {
+        if (document.getElementById('recordingOverlay').classList.contains('active')) {
+          // Restart for continuous mode
+          try { recognition.start(); } catch (e) { /* ignore */ }
+        }
+      };
+
+      try {
+        recognition.start();
+        recStartTime = Date.now();
+        document.getElementById('recordingOverlay').classList.add('active');
+        document.getElementById('recordBtn').classList.add('recording');
+        recTimerInterval = setInterval(updateRecTimer, 1000);
+      } catch (e) {
+        showToast('Could not start recording: ' + e.message, 'error');
+      }
+    }
+
+    function stopRecording(save = true) {
+      if (recognition) {
+        recognition.onend = null;
+        try { recognition.stop(); } catch (e) {}
+      }
+      clearInterval(recTimerInterval);
+      document.getElementById('recordingOverlay').classList.remove('active');
+      document.getElementById('recordBtn').classList.remove('recording');
+
+      const transcript = (finalTranscript + ' ' + interimTranscript).trim();
+      if (save && transcript) {
+        openConfirmModal(transcript);
+      }
+    }
+
+    function updateTranscriptDisplay(placeholder) {
+      const el = document.getElementById('recTranscript');
+      if (placeholder && !finalTranscript && !interimTranscript) {
+        el.innerHTML = '<div class="rec-placeholder">Speak now. e.g. "Coordinating with Will on vented soffit, fourth floor deck unit B4"</div>';
+        return;
+      }
+      const final = finalTranscript;
+      const interim = interimTranscript ? `<span class="interim">${escapeHtml(interimTranscript)}</span>` : '';
+      el.innerHTML = escapeHtml(final) + interim;
+    }
+
+    function updateRecTimer() {
+      const sec = Math.floor((Date.now() - recStartTime) / 1000);
+      const m = String(Math.floor(sec / 60)).padStart(2, '0');
+      const s = String(sec % 60).padStart(2, '0');
+      document.getElementById('recTimer').textContent = `${m}:${s}`;
+    }
+
+    // =====================================================================
+    // CONFIRM MODAL
+    // =====================================================================
+    let pendingActivity = null;
+
+    function openConfirmModal(transcript, suggestedDuration = null) {
+      const cls = classify(transcript);
+      const duration = suggestedDuration || estimateDuration();
+      pendingActivity = {
+        id: 'act_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+        date: todayStr(),
+        startTime: Date.now() - (duration * 60 * 1000),
+        endTime: Date.now(),
+        durationMinutes: duration,
+        transcript: transcript,
+        costCode: cls.code,
+        confidence: cls.confidence,
+        manuallyReclassified: false
+      };
+
+      document.getElementById('confirmTranscript').textContent = transcript;
+      document.getElementById('durationInput').value = duration;
+      const confTag = document.getElementById('confidenceTag');
+      confTag.textContent = cls.confidence.toUpperCase();
+      confTag.className = 'confidence mono' + (cls.confidence === 'low' ? ' low' : '');
+      renderCodeGrid(cls.code);
+      document.getElementById('confirmModal').classList.add('active');
+    }
+
+    function renderCodeGrid(selectedCode) {
+      const grid = document.getElementById('codeGrid');
+      grid.innerHTML = COST_CODES.map(c => `
+        <button class="code-option ${c.code === selectedCode ? 'selected' : ''}" data-code="${c.code}">
+          <div class="code-option-dot" style="background: ${c.color}"></div>
+          <div>
+            <div class="code-option-name">${c.name}</div>
+            <div class="code-option-num">${c.code}</div>
+          </div>
+        </button>
+      `).join('');
+      grid.querySelectorAll('.code-option').forEach(btn => {
+        btn.addEventListener('click', () => {
+          grid.querySelectorAll('.code-option').forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+          if (pendingActivity) {
+            pendingActivity.costCode = btn.dataset.code;
+            pendingActivity.manuallyReclassified = btn.dataset.code !== pendingActivity._autoCode;
+          }
+        });
+      });
+    }
+
+    function estimateDuration() {
+      // Try to infer duration based on last activity's end time
+      return 15; // default 15 min
+    }
+
+    function closeConfirmModal() {
+      document.getElementById('confirmModal').classList.remove('active');
+      pendingActivity = null;
+    }
+
+    async function saveActivity() {
+      if (!pendingActivity) return;
+      const dur = parseInt(document.getElementById('durationInput').value) || 15;
+      pendingActivity.durationMinutes = dur;
+      pendingActivity.startTime = pendingActivity.endTime - (dur * 60 * 1000);
+      const selectedCode = document.querySelector('.code-option.selected');
+      if (selectedCode) pendingActivity.costCode = selectedCode.dataset.code;
+
+      await saveActivityToDB(pendingActivity);
+      closeConfirmModal();
+      showToast('Activity saved', 'success');
+      renderToday();
+      renderSummary();
+    }
+
+    // =====================================================================
+    // RENDERING
+    // =====================================================================
+    function todayStr() {
+      const d = new Date();
+      return d.toISOString().slice(0, 10);
+    }
+
+    async function renderToday() {
+      const activities = await getActivitiesForDate(todayStr());
+      const list = document.getElementById('todayList');
+      if (activities.length === 0) {
+        list.innerHTML = `
+          <div class="empty">
+            <div class="empty-icon">▼</div>
+            <div class="empty-title">No activities yet</div>
+            <div class="empty-sub">Tap the record button to capture your first activity</div>
+          </div>
+        `;
+        return;
+      }
+      list.innerHTML = activities.map(a => {
+        const c = getCode(a.costCode);
+        const startT = new Date(a.startTime);
+        const endT = new Date(a.endTime);
+        const tStr = `${pad(startT.getHours())}:${pad(startT.getMinutes())} – ${pad(endT.getHours())}:${pad(endT.getMinutes())}`;
+        return `
+          <div class="activity" style="border-left-color: ${c.color}">
+            <div class="activity-head">
+              <span class="activity-time mono">${tStr}</span>
+              <span class="activity-duration mono">${a.durationMinutes} min</span>
+            </div>
+            <div class="activity-transcript">${escapeHtml(a.transcript)}</div>
+            <div class="activity-code">
+              <div class="activity-code-dot" style="background: ${c.color}"></div>
+              ${c.name} · ${c.code}
+            </div>
+            <div class="activity-actions">
+              <button class="activity-action" data-edit="${a.id}">Edit</button>
+              <button class="activity-action danger" data-delete="${a.id}">Delete</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      list.querySelectorAll('[data-delete]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (confirm('Delete this activity?')) {
+            await deleteActivityFromDB(btn.dataset.delete);
+            renderToday();
+            renderSummary();
+            showToast('Deleted', 'warn');
+          }
+        });
+      });
+      list.querySelectorAll('[data-edit]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const activities = await getActivitiesForDate(todayStr());
+          const a = activities.find(x => x.id === btn.dataset.edit);
+          if (a) {
+            openConfirmModal(a.transcript, a.durationMinutes);
+            await deleteActivityFromDB(a.id); // replace on save
+          }
+        });
+      });
+    }
+
+    async function renderSummary() {
+      const activities = await getActivitiesForDate(todayStr());
+      const totals = {};
+      let grandMin = 0;
+      activities.forEach(a => {
+        totals[a.costCode] = (totals[a.costCode] || 0) + a.durationMinutes;
+        grandMin += a.durationMinutes;
+      });
+
+      const totalHrs = (grandMin / 60).toFixed(2);
+      document.getElementById('totalHours').textContent = totalHrs;
+
+      const list = document.getElementById('summaryList');
+      const usedCodes = COST_CODES.filter(c => totals[c.code] > 0);
+      if (usedCodes.length === 0) {
+        list.innerHTML = `
+          <div class="empty">
+            <div class="empty-title">No hours logged</div>
+            <div class="empty-sub">Capture activities on the Today tab</div>
+          </div>
+        `;
+        return;
+      }
+
+      const maxMin = Math.max(...Object.values(totals));
+      list.innerHTML = usedCodes.map(c => {
+        const min = totals[c.code];
+        const hrs = (min / 60).toFixed(2);
+        const pct = (min / maxMin) * 100;
+        return `
+          <div class="code-row">
+            <div class="code-row-head">
+              <div>
+                <div class="code-row-name">
+                  <div class="code-row-dot" style="background: ${c.color}"></div>
+                  ${c.name}
+                </div>
+                <div class="code-row-num">${c.code}</div>
+              </div>
+              <div class="code-row-hours mono" style="color: ${c.color}">${hrs}</div>
+            </div>
+            <div class="code-row-bar">
+              <div class="code-row-bar-fill" style="width: ${pct}%; background: ${c.color}"></div>
+            </div>
+            <div class="code-row-meta">
+              <span>${min} min logged</span>
+              <button class="copy-btn" data-copy-hrs="${hrs}" data-copy-code="${c.code}">Copy ${hrs}</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      list.querySelectorAll('.copy-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const hrs = btn.dataset.copyHrs;
+          await navigator.clipboard.writeText(hrs);
+          btn.classList.add('copied');
+          btn.textContent = 'Copied';
+          setTimeout(() => {
+            btn.classList.remove('copied');
+            btn.textContent = `Copy ${hrs}`;
+          }, 1500);
+        });
+      });
+    }
+
+    function buildFullSummary() {
+      // For copy-all - formatted text for HH2 comments / personal log
+      return getActivitiesForDate(todayStr()).then(activities => {
+        const totals = {};
+        const byCode = {};
+        activities.forEach(a => {
+          totals[a.costCode] = (totals[a.costCode] || 0) + a.durationMinutes;
+          (byCode[a.costCode] = byCode[a.costCode] || []).push(a);
+        });
+        let out = `GT MANN FIELD TRACKER — ${todayStr()}\n\n`;
+        out += `=== HOURS BY CODE ===\n`;
+        Object.entries(totals).forEach(([code, min]) => {
+          const c = getCode(code);
+          out += `${c.name} (${code}): ${(min/60).toFixed(2)} hrs\n`;
+        });
+        out += `\n=== ACTIVITY LOG ===\n`;
+        activities.forEach(a => {
+          const c = getCode(a.costCode);
+          const t = new Date(a.startTime);
+          out += `${pad(t.getHours())}:${pad(t.getMinutes())} [${c.name}] ${a.transcript} (${a.durationMinutes}min)\n`;
+        });
+        return out;
+      });
+    }
+
+    // =====================================================================
+    // UTILITIES
+    // =====================================================================
+    function pad(n) { return String(n).padStart(2, '0'); }
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    }
+    function showToast(msg, type = '') {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = 'toast show ' + type;
+      setTimeout(() => t.classList.remove('show'), 2400);
+    }
+
+    // =====================================================================
+    // EVENT WIRING
+    // =====================================================================
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Date display
+      const now = new Date();
+      const opts = { weekday: 'short', month: 'short', day: 'numeric' };
+      document.getElementById('dateDisplay').textContent = now.toLocaleDateString('en-US', opts).toUpperCase();
+
+      // Tabs
+      document.querySelectorAll('.tab').forEach(t => {
+        t.addEventListener('click', () => {
+          document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+          document.querySelectorAll('.view').forEach(x => x.classList.remove('active'));
+          t.classList.add('active');
+          document.getElementById('view-' + t.dataset.view).classList.add('active');
+          if (t.dataset.view === 'summary') renderSummary();
+          if (t.dataset.view === 'today') renderToday();
+        });
+      });
+
+      // Record button
+      document.getElementById('recordBtn').addEventListener('click', startRecording);
+      document.getElementById('recStop').addEventListener('click', () => stopRecording(true));
+      document.getElementById('recCancel').addEventListener('click', () => {
+        finalTranscript = '';
+        interimTranscript = '';
+        stopRecording(false);
+      });
+
+      // Manual entry
+      document.getElementById('manualEntryBtn').addEventListener('click', () => {
+        const text = prompt('Describe the activity:');
+        if (text && text.trim()) openConfirmModal(text.trim());
+      });
+
+      // Modal
+      document.getElementById('cancelConfirm').addEventListener('click', closeConfirmModal);
+      document.getElementById('saveActivity').addEventListener('click', saveActivity);
+
+      // Duration adjusters
+      document.querySelectorAll('.dur-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const input = document.getElementById('durationInput');
+          const cur = parseInt(input.value) || 15;
+          const delta = parseInt(btn.dataset.dur);
+          input.value = Math.max(1, Math.min(600, cur + delta));
+        });
+      });
+
+      // Summary actions
+      document.getElementById('copyAllBtn').addEventListener('click', async () => {
+        const txt = await buildFullSummary();
+        await navigator.clipboard.writeText(txt);
+        showToast('Full summary copied', 'success');
+      });
+
+      document.getElementById('exportBtn').addEventListener('click', async () => {
+        const txt = await buildFullSummary();
+        const blob = new Blob([txt], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `field-tracker-${todayStr()}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+
+      // Init render
+      renderToday();
+      renderSummary();
+
+      // PWA service worker
+      if ('serviceWorker' in navigator) {
+        try {
+          await navigator.serviceWorker.register('sw.js');
+        } catch (e) { /* ignore */ }
+      }
+    });
+  </script>
+
+</body>
+</html>
