@@ -889,7 +889,7 @@ main::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
       el.innerHTML = '<strong>' + escapeHtml(pendingActivity.location.label) + '</strong>';
     }
 
-
+    function renderCodeGrid(selectedCode) {
       const grid = document.getElementById('codeGrid');
       grid.innerHTML = COST_CODES.map(c => `
         <button class="code-option ${c.code === selectedCode ? 'selected' : ''}" data-code="${c.code}">
