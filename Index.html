@@ -166,7 +166,27 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; position: r
 .full-btn-primary { background: #FFD600; color: #0a0a0a; }
 .full-btn-secondary { background: #1a1a1a; color: #aaa; border: 1px solid #2a2a2a; }
 
-/* === REWORK STAT CHIP === */
+/* === LOCATION PICKER === */
+.loc-section { display: flex; flex-direction: column; gap: 8px; }
+.loc-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.loc-chip { padding: 8px 12px; background: #1a1a1a; border: 1.5px solid #2a2a2a; border-radius: 18px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; color: #aaa; text-align: center; min-width: 44px; }
+.loc-chip.selected { background: #1f1f0a; border-color: #FFD600; color: #FFD600; }
+.loc-units { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.loc-unit { padding: 10px 4px; background: #1a1a1a; border: 1.5px solid #2a2a2a; border-radius: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: #aaa; text-align: center; }
+.loc-unit.selected { background: #1f1f0a; border-color: #FFD600; color: #FFD600; }
+.loc-corridor { padding: 10px 12px; background: #1a1a1a; border: 1.5px dashed #2a2a2a; border-radius: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #888; text-align: center; margin-bottom: 4px; width: 100%; }
+.loc-corridor.selected { background: #1f1f0a; border-color: #FFD600; border-style: solid; color: #FFD600; }
+.loc-common { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.loc-common-chip { padding: 10px 8px; background: #1a1a1a; border: 1.5px solid #2a2a2a; border-radius: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: #aaa; text-align: center; }
+.loc-common-chip.selected { background: #1f1f0a; border-color: #FFD600; color: #FFD600; }
+.loc-custom-input { width: 100%; padding: 10px 12px; background: #1a1a1a; border: 1.5px solid #FFD600; border-radius: 6px; color: #f5f5f5; font-family: 'IBM Plex Sans', sans-serif; font-size: 14px; margin-top: 6px; }
+.loc-custom-input:focus { outline: none; border-color: #FFD600; box-shadow: 0 0 0 2px rgba(255, 214, 0, 0.15); }
+.loc-summary { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.08em; color: #888; margin-top: 4px; }
+.loc-summary strong { color: #FFD600; font-weight: 700; }
+
+/* === LOCATION CHIP ON ACTIVITY CARD === */
+.activity-location { display: inline-flex; align-items: center; gap: 4px; font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 8px; border-radius: 4px; background: rgba(150, 200, 255, 0.1); border: 1px solid rgba(150, 200, 255, 0.35); color: #96c8ff; }
+.activity-location::before { content: '📍'; font-size: 9px; }
 .rework-stat { display: inline-flex; align-items: baseline; gap: 8px; margin-top: 8px; padding: 5px 10px; border-radius: 4px; background: #1a1a1a; border: 1px solid #2a2a2a; font-family: 'IBM Plex Mono', monospace; transition: all 0.2s ease; }
 .rework-stat-label { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: #888; font-weight: 600; }
 .rework-stat-value { font-size: 14px; font-weight: 700; color: #888; }
@@ -299,6 +319,24 @@ main::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
   </div>
 
   <div class="modal-section">
+    <div class="modal-label">
+      <span>Location</span>
+      <span class="loc-summary" id="locSummary"></span>
+    </div>
+    <div class="loc-section">
+      <div class="loc-row" id="locLevelRow">
+        <button class="loc-chip" data-loc-level="1">L1</button>
+        <button class="loc-chip" data-loc-level="2">L2</button>
+        <button class="loc-chip" data-loc-level="3">L3</button>
+        <button class="loc-chip" data-loc-level="4">L4</button>
+        <button class="loc-chip" data-loc-level="5">L5</button>
+        <button class="loc-chip" data-loc-level="common">Common</button>
+      </div>
+      <div id="locDetail"></div>
+    </div>
+  </div>
+
+  <div class="modal-section">
     <div class="modal-label"><span>Duration (minutes)</span></div>
     <div class="duration-input">
       <button class="dur-btn" data-dur="-15">−15</button>
@@ -387,6 +425,96 @@ main::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
 
     const getCode = (num) => COST_CODES.find(c => c.code === num) || COST_CODES.find(c => c.code === '11206.000');
     const getTag  = (id)  => SUB_TAGS.find(t => t.id === id) || SUB_TAGS[0];
+
+    // =====================================================================
+    // LOCATIONS — Grand & Fir building structure
+    // 5 levels × 18 units (101-118, 201-218, etc.) + corridors + common areas
+    // =====================================================================
+    const COMMON_AREAS = [
+      { id: 'lobby',         label: 'Lobby' },
+      { id: 'main_entrance', label: 'Main Entry' },
+      { id: 'stairs_n',      label: 'Stairs N' },
+      { id: 'stairs_s',      label: 'Stairs S' },
+      { id: 'parkade_p1',    label: 'P1' },
+      { id: 'mech_elec',     label: 'Mech/Elec' },
+      { id: 'roof',          label: 'Roof' },
+      { id: 'sundecks',      label: 'Sundecks' },
+      { id: 'exterior',      label: 'Exterior' },
+      { id: 'other',         label: 'Other' }
+    ];
+
+    // Build a structured location object from raw selections
+    function buildLocation({ level = null, unit = null, area = null, custom = null }) {
+      let label = '';
+      if (custom) label = custom;
+      else if (unit) label = 'Unit ' + unit;
+      else if (level && area === 'corridor') label = 'L' + level + ' Corridor';
+      else if (area) {
+        const a = COMMON_AREAS.find(x => x.id === area);
+        label = a ? a.label : '';
+      }
+      return { level, unit, area, custom, label };
+    }
+
+    // Auto-extract location from transcript
+    function extractLocation(transcript) {
+      const text = (transcript || '').toLowerCase();
+
+      // Unit number: 101-118, 201-218, 301-318, 401-418, 501-518
+      const unitMatch = text.match(/\b([1-5])(?:0([1-9])|1([0-8]))\b/);
+      if (unitMatch) {
+        const lvl = parseInt(unitMatch[1]);
+        const unit = parseInt(unitMatch[0]);
+        return buildLocation({ level: lvl, unit: unit });
+      }
+
+      // Explicit "unit XXX" phrasing (catches "unit 312" even out of pattern)
+      const explicitUnit = text.match(/\bunit\s*([1-5][01][0-9])\b/);
+      if (explicitUnit) {
+        const u = parseInt(explicitUnit[1]);
+        if (u >= 101 && u <= 518) {
+          return buildLocation({ level: Math.floor(u / 100), unit: u });
+        }
+      }
+
+      // Level detection (for corridor / contextual)
+      const levelMatch = text.match(/\b(?:level|lvl|l)\s*([1-5])\b/) ||
+                        text.match(/\b([1-5])(?:st|nd|rd|th)\s*(?:floor|fl)\b/) ||
+                        text.match(/\b(first|second|third|fourth|fifth)\s*(?:floor|fl|level)\b/);
+      let detectedLevel = null;
+      if (levelMatch) {
+        const wordToNum = { first: 1, second: 2, third: 3, fourth: 4, fifth: 5 };
+        detectedLevel = wordToNum[levelMatch[1]] || parseInt(levelMatch[1]);
+      }
+
+      // Corridor
+      if (text.includes('corridor') || text.includes('hallway')) {
+        return buildLocation({ level: detectedLevel, area: 'corridor' });
+      }
+
+      // Common areas — order matters: more specific phrases first
+      if (text.includes('main entrance') || text.includes('main entry'))
+        return buildLocation({ area: 'main_entrance' });
+      if (text.match(/\bstair(?:well)?\s*(?:n|north)\b/))
+        return buildLocation({ area: 'stairs_n' });
+      if (text.match(/\bstair(?:well)?\s*(?:s|south)\b/))
+        return buildLocation({ area: 'stairs_s' });
+      if (text.match(/\bp1\b/) || text.includes('parkade') || text.includes('parking'))
+        return buildLocation({ area: 'parkade_p1' });
+      if (text.includes('mech') || text.includes('elec room') || text.includes('electrical room'))
+        return buildLocation({ area: 'mech_elec' });
+      if (text.match(/\broof(?:top)?\b/))
+        return buildLocation({ area: 'roof' });
+      if (text.includes('sundeck') || text.includes('balcony') || text.includes('patio'))
+        return buildLocation({ area: 'sundecks' });
+      if (text.includes('lobby'))
+        return buildLocation({ area: 'lobby' });
+      if (text.match(/\bexterior\b/) || text.includes('outside') || text.includes('cladding') || text.includes('soffit'))
+        return buildLocation({ area: 'exterior' });
+
+      // Nothing matched — return level (if any) but no specific area
+      return buildLocation({ level: detectedLevel });
+    }
 
     // =====================================================================
     // CLASSIFIER — cost code + sub-tag
@@ -599,10 +727,11 @@ main::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
     // =====================================================================
     let pendingActivity = null;
 
-    async function openConfirmModal(transcript, suggestedDuration = null, preserveCreatedAt = null) {
+    async function openConfirmModal(transcript, suggestedDuration = null, preserveCreatedAt = null, preserveLocation = null) {
       const isBackfill = !isToday(currentDate);
       const cls = classify(transcript, isBackfill);
       const duration = suggestedDuration || estimateDuration();
+      const location = preserveLocation || extractLocation(transcript);
 
       // Pick endTime based on whether we're on today or a past day
       const endTime = isToday(currentDate)
@@ -620,6 +749,7 @@ main::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
         costCode: cls.code,
         subTag: cls.subTag,
         confidence: cls.confidence,
+        location: location,
         _autoCode: cls.code,
         _autoSubTag: cls.subTag,
         manuallyReclassified: false,
@@ -633,10 +763,133 @@ main::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
       confTag.className = 'confidence mono' + (cls.confidence === 'low' ? ' low' : '');
       renderCodeGrid(cls.code);
       renderSubTagRow(cls.subTag);
+      renderLocationPicker(location);
       document.getElementById('confirmModal').classList.add('active');
     }
 
-    function renderCodeGrid(selectedCode) {
+    // =====================================================================
+    // LOCATION PICKER UI
+    // =====================================================================
+    function renderLocationPicker(initialLocation) {
+      // Determine the active level row selection from the initial location
+      let activeLevelKey = null;
+      if (initialLocation.unit) activeLevelKey = String(initialLocation.level);
+      else if (initialLocation.level && initialLocation.area === 'corridor') activeLevelKey = String(initialLocation.level);
+      else if (initialLocation.area || initialLocation.custom) activeLevelKey = 'common';
+      else if (initialLocation.level) activeLevelKey = String(initialLocation.level);
+
+      // Update level row chips
+      document.querySelectorAll('#locLevelRow .loc-chip').forEach(chip => {
+        chip.classList.toggle('selected', chip.dataset.locLevel === activeLevelKey);
+        chip.onclick = () => {
+          document.querySelectorAll('#locLevelRow .loc-chip').forEach(c => c.classList.remove('selected'));
+          chip.classList.add('selected');
+          const key = chip.dataset.locLevel;
+          if (key === 'common') {
+            renderLocationDetail('common');
+            if (pendingActivity) pendingActivity.location = buildLocation({});
+          } else {
+            const lvl = parseInt(key);
+            renderLocationDetail(lvl);
+            if (pendingActivity) pendingActivity.location = buildLocation({ level: lvl });
+          }
+          updateLocSummary();
+        };
+      });
+
+      renderLocationDetail(activeLevelKey === 'common' ? 'common' : (activeLevelKey ? parseInt(activeLevelKey) : null), initialLocation);
+      updateLocSummary();
+    }
+
+    function renderLocationDetail(levelOrCommon, initialLocation = null) {
+      const container = document.getElementById('locDetail');
+      if (levelOrCommon === null) {
+        container.innerHTML = '';
+        return;
+      }
+      const loc = initialLocation || (pendingActivity && pendingActivity.location) || buildLocation({});
+
+      if (levelOrCommon === 'common') {
+        const isOtherSelected = loc.custom !== null && loc.custom !== '';
+        container.innerHTML = `
+          <div class="loc-common" id="locCommonGrid">
+            ${COMMON_AREAS.map(a => `
+              <button class="loc-common-chip ${(loc.area === a.id || (a.id === 'other' && isOtherSelected)) ? 'selected' : ''}" data-area="${a.id}">${a.label}</button>
+            `).join('')}
+          </div>
+          <input type="text" class="loc-custom-input" id="locCustomInput"
+            placeholder="Type a custom location..."
+            value="${loc.custom ? escapeHtml(loc.custom) : ''}"
+            style="display:${isOtherSelected ? 'block' : 'none'}">
+        `;
+        container.querySelectorAll('.loc-common-chip').forEach(btn => {
+          btn.onclick = () => {
+            container.querySelectorAll('.loc-common-chip').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            const areaId = btn.dataset.area;
+            if (areaId === 'other') {
+              const input = document.getElementById('locCustomInput');
+              input.style.display = 'block';
+              input.focus();
+              if (pendingActivity) pendingActivity.location = buildLocation({ custom: input.value || '' });
+            } else {
+              document.getElementById('locCustomInput').style.display = 'none';
+              if (pendingActivity) pendingActivity.location = buildLocation({ area: areaId });
+            }
+            updateLocSummary();
+          };
+        });
+        const customInput = document.getElementById('locCustomInput');
+        customInput.addEventListener('input', () => {
+          if (pendingActivity) pendingActivity.location = buildLocation({ custom: customInput.value });
+          updateLocSummary();
+        });
+      } else {
+        const lvl = levelOrCommon;
+        const baseUnit = lvl * 100;
+        const units = [];
+        for (let i = 1; i <= 18; i++) units.push(baseUnit + i);
+        container.innerHTML = `
+          <button class="loc-corridor ${(loc.level === lvl && loc.area === 'corridor') ? 'selected' : ''}" data-corridor="${lvl}">L${lvl} Corridor</button>
+          <div class="loc-units">
+            ${units.map(u => `
+              <button class="loc-unit ${loc.unit === u ? 'selected' : ''}" data-unit="${u}">${u}</button>
+            `).join('')}
+          </div>
+        `;
+        container.querySelector('.loc-corridor').onclick = (e) => {
+          container.querySelectorAll('.loc-unit').forEach(b => b.classList.remove('selected'));
+          e.currentTarget.classList.toggle('selected');
+          if (e.currentTarget.classList.contains('selected')) {
+            if (pendingActivity) pendingActivity.location = buildLocation({ level: lvl, area: 'corridor' });
+          } else {
+            if (pendingActivity) pendingActivity.location = buildLocation({ level: lvl });
+          }
+          updateLocSummary();
+        };
+        container.querySelectorAll('.loc-unit').forEach(btn => {
+          btn.onclick = () => {
+            container.querySelector('.loc-corridor').classList.remove('selected');
+            container.querySelectorAll('.loc-unit').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            const u = parseInt(btn.dataset.unit);
+            if (pendingActivity) pendingActivity.location = buildLocation({ level: lvl, unit: u });
+            updateLocSummary();
+          };
+        });
+      }
+    }
+
+    function updateLocSummary() {
+      const el = document.getElementById('locSummary');
+      if (!pendingActivity || !pendingActivity.location || !pendingActivity.location.label) {
+        el.innerHTML = '<em style="color:#555">No location</em>';
+        return;
+      }
+      el.innerHTML = '<strong>' + escapeHtml(pendingActivity.location.label) + '</strong>';
+    }
+
+
       const grid = document.getElementById('codeGrid');
       grid.innerHTML = COST_CODES.map(c => `
         <button class="code-option ${c.code === selectedCode ? 'selected' : ''}" data-code="${c.code}">
@@ -802,6 +1055,7 @@ main::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
                 ${c.name} · ${c.code}
               </div>
               <div class="activity-subtag" style="--tag-color:${t.color}">${t.label}</div>
+              ${(a.location && a.location.label) ? `<div class="activity-location">${escapeHtml(a.location.label)}</div>` : ''}
               ${isBackfilled(a) ? '<div class="activity-backfill">Backfill</div>' : ''}
             </div>
             <div class="activity-actions">
@@ -827,7 +1081,7 @@ main::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
           const activities = await getActivitiesForDate(currentDate);
           const a = activities.find(x => x.id === btn.dataset.edit);
           if (a) {
-            openConfirmModal(a.transcript, a.durationMinutes, a.createdAt);
+            openConfirmModal(a.transcript, a.durationMinutes, a.createdAt, a.location);
             await deleteActivityFromDB(a.id);
           }
         });
@@ -956,7 +1210,8 @@ main::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
           const c = getCode(a.costCode);
           const tg = getTag(a.subTag || 'new');
           const t = new Date(a.startTime);
-          out += `${pad(t.getHours())}:${pad(t.getMinutes())} [${c.name} / ${tg.label}] ${a.transcript} (${a.durationMinutes}min)\n`;
+          const locStr = (a.location && a.location.label) ? ' @ ' + a.location.label : '';
+          out += `${pad(t.getHours())}:${pad(t.getMinutes())} [${c.name} / ${tg.label}]${locStr} ${a.transcript} (${a.durationMinutes}min)\n`;
         });
         return out;
       });
