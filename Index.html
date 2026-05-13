@@ -37,6 +37,17 @@ header { display: flex; justify-content: space-between; align-items: center; pad
 .brand-name { font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: #f5f5f5; }
 .date-display { font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.05em; color: #888; }
 
+/* === DATE NAVIGATION === */
+.date-nav { display: flex; align-items: center; gap: 6px; }
+.date-nav-arrow { background: none; border: 1px solid #2a2a2a; color: #888; width: 26px; height: 26px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 11px; padding: 0; }
+.date-nav-arrow:disabled { opacity: 0.3; }
+.date-nav-arrow:not(:disabled):active { background: #1a1a1a; color: #FFD600; border-color: #FFD600; }
+.date-display.past { color: #FFB84D; }
+.today-btn { display: none; background: #1a1a1a; border: 1px solid #FFD600; color: #FFD600; font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 4px 8px; border-radius: 4px; margin-left: 4px; }
+.today-btn.show { display: inline-block; }
+.past-day-banner { display: none; background: rgba(255, 184, 77, 0.1); border-bottom: 1px solid rgba(255, 184, 77, 0.3); color: #FFB84D; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; text-align: center; padding: 8px 16px; font-weight: 600; }
+.past-day-banner.show { display: block; }
+
 /* === TABS === */
 .tabs { display: flex; border-bottom: 1px solid #1f1f1f; background: #0a0a0a; }
 .tab { flex: 1; padding: 14px 8px; text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #666; background: transparent; border: none; border-bottom: 2px solid transparent; transition: all 0.15s ease; }
@@ -64,6 +75,8 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; position: r
 .activity-code { display: inline-flex; align-items: center; gap: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 8px; border-radius: 4px; background: #1a1a1a; border: 1px solid #2a2a2a; }
 .activity-code-dot { width: 6px; height: 6px; border-radius: 50%; }
 .activity-subtag { display: inline-flex; align-items: center; font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 4px 8px; border-radius: 4px; --tag-color: #888; background: color-mix(in srgb, var(--tag-color) 14%, transparent); border: 1px solid color-mix(in srgb, var(--tag-color) 50%, transparent); color: var(--tag-color); }
+.activity-backfill { display: inline-flex; align-items: center; gap: 4px; font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; padding: 4px 8px; border-radius: 4px; background: rgba(255, 184, 77, 0.12); border: 1px dashed rgba(255, 184, 77, 0.5); color: #FFB84D; }
+.activity-backfill::before { content: '↺'; font-size: 11px; }
 .activity-actions { display: flex; gap: 8px; margin-top: 10px; }
 .activity-action { flex: 1; padding: 8px; font-size: 12px; font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.05em; color: #888; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 4px; }
 .activity-action.danger { color: #ff4444; }
@@ -193,10 +206,17 @@ main::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
         <div class="brand-dot"></div>
         <div class="brand-name">GT Mann · Field Tracker</div>
       </div>
-      <div class="date-display mono" id="dateDisplay"></div>
+      <div class="date-nav">
+        <button class="date-nav-arrow" id="dateBack" aria-label="Previous day">◀</button>
+        <div class="date-display mono" id="dateDisplay"></div>
+        <button class="date-nav-arrow" id="dateForward" aria-label="Next day">▶</button>
+        <button class="today-btn" id="todayBtn">Today</button>
+      </div>
     </header>
 
 ```
+<div class="past-day-banner" id="pastDayBanner">Viewing past day · entries save to selected date</div>
+
 <nav class="tabs">
   <button class="tab active" data-view="today">Today</button>
   <button class="tab" data-view="summary">Summary</button>
@@ -211,7 +231,7 @@ main::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
   <section class="view" id="view-summary">
     <div class="summary-header">
       <div>
-        <div class="summary-title">Today · Daily Total</div>
+        <div class="summary-title" id="summaryTitle">Today · Daily Total</div>
         <div class="rework-stat" id="reworkStat" style="display:none;">
           <span class="rework-stat-label">Rework</span>
           <span class="rework-stat-value mono" id="reworkPct">0%</span>
@@ -371,7 +391,7 @@ main::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
     // =====================================================================
     // CLASSIFIER — cost code + sub-tag
     // =====================================================================
-    function classify(transcript) {
+    function classify(transcript, isBackfill = false) {
       const text = (transcript || '').toLowerCase();
 
       const codeScores = COST_CODES.map(c => {
@@ -379,6 +399,16 @@ main::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
         c.keywords.forEach(kw => { if (text.includes(kw)) score++; });
         return { code: c.code, score };
       });
+
+      // Past-day bias: Foreman gets a +0.5 score boost so it wins close ties.
+      // Only applies when Foreman has at least one real hit — never invents matches.
+      if (isBackfill) {
+        const foremanScore = codeScores.find(s => s.code === '11206.000');
+        if (foremanScore && foremanScore.score > 0) {
+          foremanScore.score += 0.5;
+        }
+      }
+
       codeScores.sort((a, b) => b.score - a.score);
 
       let code, confidence;
@@ -407,6 +437,14 @@ main::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
       }
 
       return { code, confidence, subTag };
+    }
+
+    // Backfill detection: an activity is backfilled if its target date is
+    // earlier than the date it was actually created.
+    function isBackfilled(activity) {
+      if (!activity.createdAt) return false;
+      const createdDateStr = new Date(activity.createdAt).toISOString().slice(0, 10);
+      return activity.date < createdDateStr;
     }
 
     // =====================================================================
@@ -561,14 +599,22 @@ main::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
     // =====================================================================
     let pendingActivity = null;
 
-    function openConfirmModal(transcript, suggestedDuration = null) {
-      const cls = classify(transcript);
+    async function openConfirmModal(transcript, suggestedDuration = null, preserveCreatedAt = null) {
+      const isBackfill = !isToday(currentDate);
+      const cls = classify(transcript, isBackfill);
       const duration = suggestedDuration || estimateDuration();
+
+      // Pick endTime based on whether we're on today or a past day
+      const endTime = isToday(currentDate)
+        ? Date.now()
+        : await getDefaultEndTimeForDate(currentDate, duration);
+
       pendingActivity = {
         id: 'act_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
-        date: todayStr(),
-        startTime: Date.now() - (duration * 60 * 1000),
-        endTime: Date.now(),
+        date: currentDate,
+        createdAt: preserveCreatedAt || Date.now(),
+        startTime: endTime - (duration * 60 * 1000),
+        endTime: endTime,
         durationMinutes: duration,
         transcript: transcript,
         costCode: cls.code,
@@ -661,8 +707,71 @@ main::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
     // =====================================================================
     function todayStr() { return new Date().toISOString().slice(0, 10); }
 
+    // =====================================================================
+    // DATE NAVIGATION — currentDate is what the user is viewing/editing
+    // =====================================================================
+    let currentDate = todayStr();
+
+    function addDays(dateStr, days) {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      const dt = new Date(y, m - 1, d);
+      dt.setDate(dt.getDate() + days);
+      const yy = dt.getFullYear();
+      const mm = String(dt.getMonth() + 1).padStart(2, '0');
+      const dd = String(dt.getDate()).padStart(2, '0');
+      return `${yy}-${mm}-${dd}`;
+    }
+
+    function formatDisplayDate(dateStr) {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      const dt = new Date(y, m - 1, d);
+      return dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase();
+    }
+
+    function isToday(dateStr) { return dateStr === todayStr(); }
+
+    async function setCurrentDate(dateStr) {
+      // Don't allow future dates
+      if (dateStr > todayStr()) return;
+      currentDate = dateStr;
+      updateDateUI();
+      await renderToday();
+      await renderSummary();
+    }
+
+    function updateDateUI() {
+      const isOnToday = isToday(currentDate);
+      const display = document.getElementById('dateDisplay');
+      display.textContent = formatDisplayDate(currentDate);
+      display.className = 'date-display mono' + (isOnToday ? '' : ' past');
+
+      document.getElementById('dateForward').disabled = isOnToday;
+      document.getElementById('todayBtn').classList.toggle('show', !isOnToday);
+      document.getElementById('pastDayBanner').classList.toggle('show', !isOnToday);
+
+      // Update summary title to reflect viewed date
+      const summaryTitle = document.getElementById('summaryTitle');
+      if (summaryTitle) {
+        summaryTitle.textContent = (isOnToday ? 'Today' : formatDisplayDate(currentDate)) + ' · Daily Total';
+      }
+    }
+
+    // For past-day entries: pick a sensible default time-of-day so the
+    // activity sits chronologically after the last one already logged.
+    async function getDefaultEndTimeForDate(dateStr, durationMin) {
+      const acts = await getActivitiesForDate(dateStr);
+      if (acts.length > 0) {
+        // 5 min after the last entry's end time
+        return acts[acts.length - 1].endTime + (5 * 60 * 1000);
+      }
+      // No entries yet — start the day at 8:00 AM local
+      const [y, m, d] = dateStr.split('-').map(Number);
+      const dt = new Date(y, m - 1, d, 8, 0, 0, 0);
+      return dt.getTime() + (durationMin * 60 * 1000);
+    }
+
     async function renderToday() {
-      const activities = await getActivitiesForDate(todayStr());
+      const activities = await getActivitiesForDate(currentDate);
       const list = document.getElementById('todayList');
       if (activities.length === 0) {
         list.innerHTML = `
@@ -693,6 +802,7 @@ main::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
                 ${c.name} · ${c.code}
               </div>
               <div class="activity-subtag" style="--tag-color:${t.color}">${t.label}</div>
+              ${isBackfilled(a) ? '<div class="activity-backfill">Backfill</div>' : ''}
             </div>
             <div class="activity-actions">
               <button class="activity-action" data-edit="${a.id}">Edit</button>
@@ -714,10 +824,10 @@ main::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
       });
       list.querySelectorAll('[data-edit]').forEach(btn => {
         btn.addEventListener('click', async () => {
-          const activities = await getActivitiesForDate(todayStr());
+          const activities = await getActivitiesForDate(currentDate);
           const a = activities.find(x => x.id === btn.dataset.edit);
           if (a) {
-            openConfirmModal(a.transcript, a.durationMinutes);
+            openConfirmModal(a.transcript, a.durationMinutes, a.createdAt);
             await deleteActivityFromDB(a.id);
           }
         });
@@ -725,7 +835,7 @@ main::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
     }
 
     async function renderSummary() {
-      const activities = await getActivitiesForDate(todayStr());
+      const activities = await getActivitiesForDate(currentDate);
       const totals = {};
       const tagTotals = {};
       let grandMin = 0;
@@ -740,6 +850,21 @@ main::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
       });
 
       document.getElementById('totalHours').textContent = (grandMin / 60).toFixed(2);
+
+      // Rework stat — the headline metric for the pitch
+      const reworkMin = activities.reduce((sum, a) => sum + (a.subTag === 'rework' ? a.durationMinutes : 0), 0);
+      const reworkStatEl = document.getElementById('reworkStat');
+      const reworkPctEl = document.getElementById('reworkPct');
+      const reworkHrsEl = document.getElementById('reworkHrs');
+      if (grandMin === 0) {
+        reworkStatEl.style.display = 'none';
+      } else {
+        const pct = Math.round((reworkMin / grandMin) * 100);
+        reworkStatEl.style.display = 'inline-flex';
+        reworkPctEl.textContent = pct + '%';
+        reworkHrsEl.textContent = reworkMin > 0 ? '· ' + (reworkMin / 60).toFixed(2) + 'h' : '';
+        reworkStatEl.className = 'rework-stat ' + (pct >= 20 ? 'bad' : pct >= 10 ? 'warn' : 'good');
+      }
 
       const list = document.getElementById('summaryList');
       const usedCodes = COST_CODES.filter(c => totals[c.code] > 0);
@@ -805,7 +930,7 @@ main::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
     }
 
     function buildFullSummary() {
-      return getActivitiesForDate(todayStr()).then(activities => {
+      return getActivitiesForDate(currentDate).then(activities => {
         const totals = {};
         const tagTotals = {};
         activities.forEach(a => {
@@ -814,7 +939,7 @@ main::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
           const tagId = a.subTag || 'new';
           if (tagTotals[a.costCode][tagId] !== undefined) tagTotals[a.costCode][tagId] += a.durationMinutes;
         });
-        let out = `GT MANN FIELD TRACKER — ${todayStr()}\n\n`;
+        let out = `GT MANN FIELD TRACKER — ${currentDate}\n\n`;
         out += `=== HOURS BY CODE ===\n`;
         Object.entries(totals).forEach(([code, min]) => {
           const c = getCode(code);
@@ -855,9 +980,17 @@ main::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
     // EVENT WIRING
     // =====================================================================
     document.addEventListener('DOMContentLoaded', async () => {
-      const now = new Date();
-      const opts = { weekday: 'short', month: 'short', day: 'numeric' };
-      document.getElementById('dateDisplay').textContent = now.toLocaleDateString('en-US', opts).toUpperCase();
+      // Date navigation
+      updateDateUI();
+      document.getElementById('dateBack').addEventListener('click', () => {
+        setCurrentDate(addDays(currentDate, -1));
+      });
+      document.getElementById('dateForward').addEventListener('click', () => {
+        if (currentDate < todayStr()) setCurrentDate(addDays(currentDate, 1));
+      });
+      document.getElementById('todayBtn').addEventListener('click', () => {
+        setCurrentDate(todayStr());
+      });
 
       document.querySelectorAll('.tab').forEach(t => {
         t.addEventListener('click', () => {
@@ -907,7 +1040,7 @@ main::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `field-tracker-${todayStr()}.txt`;
+        a.download = `field-tracker-${currentDate}.txt`;
         a.click();
         URL.revokeObjectURL(url);
       });
