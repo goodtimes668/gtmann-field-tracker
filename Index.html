@@ -262,6 +262,7 @@
         <div id="summaryList"></div>
         <div class="summary-actions">
           <button class="full-btn full-btn-primary" id="copyAllBtn">Copy Full Summary</button>
+          <button class="full-btn full-btn-secondary" id="genLogBtn">Generate Daily Log (AI)</button>
           <button class="full-btn full-btn-secondary" id="exportBtn">Export Evidence Report</button>
         </div>
       </section>
@@ -341,6 +342,18 @@
       <div class="modal-actions">
         <button class="btn btn-cancel" id="cancelConfirm">Cancel</button>
         <button class="btn btn-primary" id="saveActivity">Save Activity</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="logModal">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Daily Log</div>
+      <div class="modal-transcript" id="logOutput" style="white-space: pre-wrap; font-size: 13px;">Generating…</div>
+      <div class="modal-actions">
+        <button class="btn btn-cancel" id="closeLogModal">Close</button>
+        <button class="btn btn-primary" id="copyLogBtn">Copy Log</button>
       </div>
     </div>
   </div>
@@ -1278,6 +1291,37 @@
         const txt = await buildFullSummary();
         await navigator.clipboard.writeText(txt);
         showToast('Full summary copied', 'success');
+      });
+
+      document.getElementById('genLogBtn').addEventListener('click', async () => {
+        const modal = document.getElementById('logModal');
+        const output = document.getElementById('logOutput');
+        output.textContent = 'Generating\u2026';
+        modal.classList.add('active');
+
+        try {
+          const summaryText = await buildFullSummary();
+          const resp = await fetch('/.netlify/functions/generate-log', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ summaryText, date: currentDate }),
+          });
+          const data = await resp.json();
+          if (!resp.ok) throw new Error(data.error || 'Generation failed');
+          output.textContent = data.log;
+        } catch (err) {
+          output.textContent = 'Failed to generate log: ' + err.message + '\n\nCheck your connection and try again.';
+        }
+      });
+
+      document.getElementById('closeLogModal').addEventListener('click', () => {
+        document.getElementById('logModal').classList.remove('active');
+      });
+
+      document.getElementById('copyLogBtn').addEventListener('click', async () => {
+        const txt = document.getElementById('logOutput').textContent;
+        await navigator.clipboard.writeText(txt);
+        showToast('Daily log copied', 'success');
       });
 
       document.getElementById('exportBtn').addEventListener('click', async () => {
