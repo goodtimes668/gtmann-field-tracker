@@ -47,6 +47,12 @@
     .past-day-banner { display: none; background: rgba(255, 184, 77, 0.1); border-bottom: 1px solid rgba(255, 184, 77, 0.3); color: #FFB84D; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; text-align: center; padding: 8px 16px; font-weight: 600; }
     .past-day-banner.show { display: block; }
 
+    /* === JOBSITE BAR === */
+    .jobsite-bar { display: flex; align-items: center; gap: 10px; padding: 8px 20px; border-bottom: 1px solid #1f1f1f; background: #0a0a0a; }
+    .jobsite-label { font-family: 'IBM Plex Mono', monospace; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: #666; flex-shrink: 0; }
+    .jobsite-select { flex: 1; background: #141414; border: 1px solid #2a2a2a; border-radius: 6px; color: #FFD600; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; padding: 7px 8px; -webkit-appearance: none; appearance: none; }
+    .jobsite-select:focus { outline: none; border-color: #FFD600; }
+
     /* === TABS === */
     .tabs { display: flex; border-bottom: 1px solid #1f1f1f; background: #0a0a0a; }
     .tab { flex: 1; padding: 14px 8px; text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #666; background: transparent; border: none; border-bottom: 2px solid transparent; transition: all 0.15s ease; }
@@ -230,6 +236,11 @@
         <button class="today-btn" id="todayBtn">Today</button>
       </div>
     </header>
+
+    <div class="jobsite-bar">
+      <span class="jobsite-label">Site</span>
+      <select class="jobsite-select" id="jobsiteSelect"></select>
+    </div>
 
     <div class="past-day-banner" id="pastDayBanner">Viewing past day · entries save to selected date</div>
 
@@ -431,8 +442,85 @@
     const getTag  = (id)  => SUB_TAGS.find(t => t.id === id) || SUB_TAGS[0];
 
     // =====================================================================
-    // LOCATIONS — Grand & Fir building structure
+    // JOBSITES — lets this tracker be reused across multiple projects.
+    // Each jobsite has its own name and its own list of custom areas
+    // (added on top of the default COMMON_AREAS below).
+    // =====================================================================
+    const JOBSITES_KEY = 'ft_jobsites_v1';
+    const ACTIVE_JOBSITE_KEY = 'ft_active_jobsite_v1';
+
+    function loadJobsites() {
+      try {
+        const raw = localStorage.getItem(JOBSITES_KEY);
+        if (raw) return JSON.parse(raw);
+      } catch (e) { /* fall through to seed */ }
+      // First run — seed with the current project so nothing breaks
+      const seeded = [{ id: 'js_default', name: 'Grand & Fir', customAreas: [] }];
+      localStorage.setItem(JOBSITES_KEY, JSON.stringify(seeded));
+      return seeded;
+    }
+
+    function saveJobsites(list) {
+      localStorage.setItem(JOBSITES_KEY, JSON.stringify(list));
+    }
+
+    function getActiveJobsiteId() {
+      let id = localStorage.getItem(ACTIVE_JOBSITE_KEY);
+      const list = loadJobsites();
+      if (!id || !list.find(j => j.id === id)) {
+        id = list[0].id;
+        localStorage.setItem(ACTIVE_JOBSITE_KEY, id);
+      }
+      return id;
+    }
+
+    function setActiveJobsiteId(id) {
+      localStorage.setItem(ACTIVE_JOBSITE_KEY, id);
+    }
+
+    function getActiveJobsite() {
+      const list = loadJobsites();
+      return list.find(j => j.id === getActiveJobsiteId()) || list[0];
+    }
+
+    function addJobsite(name) {
+      const list = loadJobsites();
+      const id = 'js_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+      list.push({ id, name, customAreas: [] });
+      saveJobsites(list);
+      setActiveJobsiteId(id);
+      return id;
+    }
+
+    function addCustomAreaToActiveJobsite(label) {
+      const list = loadJobsites();
+      const site = list.find(j => j.id === getActiveJobsiteId());
+      if (!site) return null;
+      const id = 'area_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+      const area = { id, label };
+      site.customAreas.push(area);
+      saveJobsites(list);
+      return area;
+    }
+
+    function getAllAreasForActiveJobsite() {
+      return COMMON_AREAS.concat(getActiveJobsite().customAreas || []);
+    }
+
+    function populateJobsiteSelect() {
+      const sel = document.getElementById('jobsiteSelect');
+      if (!sel) return;
+      const list = loadJobsites();
+      const activeId = getActiveJobsiteId();
+      sel.innerHTML = list.map(j =>
+        `<option value="${j.id}" ${j.id === activeId ? 'selected' : ''}>${escapeHtml(j.name)}</option>`
+      ).join('') + `<option value="__add__">+ Add New Jobsite\u2026</option>`;
+    }
+
+    // =====================================================================
+    // LOCATIONS — building structure
     // 5 levels × 18 units (101-118, 201-218, etc.) + corridors + common areas
+    // (per-jobsite custom areas layer on top of the defaults below)
     // =====================================================================
     const COMMON_AREAS = [
       { id: 'lobby',         label: 'Lobby' },
@@ -454,7 +542,7 @@
       else if (unit) label = 'Unit ' + unit;
       else if (level && area === 'corridor') label = 'L' + level + ' Corridor';
       else if (area) {
-        const a = COMMON_AREAS.find(x => x.id === area);
+        const a = getAllAreasForActiveJobsite().find(x => x.id === area);
         label = a ? a.label : '';
       }
       return { level, unit, area, custom, label };
@@ -745,6 +833,7 @@
       pendingActivity = {
         id: 'act_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
         date: currentDate,
+        jobsiteId: getActiveJobsiteId(),
         createdAt: preserveCreatedAt || Date.now(),
         startTime: endTime - (duration * 60 * 1000),
         endTime: endTime,
@@ -815,18 +904,20 @@
 
       if (levelOrCommon === 'common') {
         const isOtherSelected = loc.custom !== null && loc.custom !== '';
+        const allAreas = getAllAreasForActiveJobsite();
         container.innerHTML = `
           <div class="loc-common" id="locCommonGrid">
-            ${COMMON_AREAS.map(a => `
-              <button class="loc-common-chip ${(loc.area === a.id || (a.id === 'other' && isOtherSelected)) ? 'selected' : ''}" data-area="${a.id}">${a.label}</button>
+            ${allAreas.map(a => `
+              <button class="loc-common-chip ${(loc.area === a.id || (a.id === 'other' && isOtherSelected)) ? 'selected' : ''}" data-area="${a.id}">${escapeHtml(a.label)}</button>
             `).join('')}
+            <button class="loc-common-chip" id="addAreaChip" style="border-style:dashed;color:#FFD600;">+ Add Area</button>
           </div>
           <input type="text" class="loc-custom-input" id="locCustomInput"
             placeholder="Type a custom location..."
             value="${loc.custom ? escapeHtml(loc.custom) : ''}"
             style="display:${isOtherSelected ? 'block' : 'none'}">
         `;
-        container.querySelectorAll('.loc-common-chip').forEach(btn => {
+        container.querySelectorAll('.loc-common-chip[data-area]').forEach(btn => {
           btn.onclick = () => {
             container.querySelectorAll('.loc-common-chip').forEach(b => b.classList.remove('selected'));
             btn.classList.add('selected');
@@ -843,6 +934,18 @@
             updateLocSummary();
           };
         });
+        const addAreaBtn = document.getElementById('addAreaChip');
+        if (addAreaBtn) {
+          addAreaBtn.onclick = () => {
+            const label = prompt('New area name (e.g. "Level 6" or "Loading Dock"):');
+            if (label && label.trim()) {
+              const area = addCustomAreaToActiveJobsite(label.trim());
+              renderLocationDetail('common');
+              if (pendingActivity && area) pendingActivity.location = buildLocation({ area: area.id });
+              updateLocSummary();
+            }
+          };
+        }
         const customInput = document.getElementById('locCustomInput');
         customInput.addEventListener('input', () => {
           if (pendingActivity) pendingActivity.location = buildLocation({ custom: customInput.value });
@@ -1197,7 +1300,7 @@
           const tagId = a.subTag || 'new';
           if (tagTotals[a.costCode][tagId] !== undefined) tagTotals[a.costCode][tagId] += a.durationMinutes;
         });
-        let out = `GT MANN FIELD TRACKER — ${currentDate}\n\n`;
+        let out = `GT MANN FIELD TRACKER — ${getActiveJobsite().name} — ${currentDate}\n\n`;
         out += `=== HOURS BY CODE ===\n`;
         Object.entries(totals).forEach(([code, min]) => {
           const c = getCode(code);
@@ -1239,6 +1342,26 @@
     // EVENT WIRING
     // =====================================================================
     document.addEventListener('DOMContentLoaded', async () => {
+      // Jobsite dropdown
+      populateJobsiteSelect();
+      document.getElementById('jobsiteSelect').addEventListener('change', async (e) => {
+        if (e.target.value === '__add__') {
+          const name = prompt('New jobsite name:');
+          if (name && name.trim()) {
+            addJobsite(name.trim());
+            populateJobsiteSelect();
+            showToast('Switched to ' + name.trim(), 'success');
+          } else {
+            populateJobsiteSelect(); // reset dropdown back to active selection
+          }
+        } else {
+          setActiveJobsiteId(e.target.value);
+          showToast('Switched jobsite', 'success');
+        }
+        await renderToday();
+        await renderSummary();
+      });
+
       // Date navigation
       updateDateUI();
       document.getElementById('dateBack').addEventListener('click', () => {
